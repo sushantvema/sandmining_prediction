@@ -1,0 +1,2 @@
+filename,size,height,width,format,mode,is_animated,frames
+rgb.tif,"(1224, 409)",409,1224,TIFF,RGB,False,1
