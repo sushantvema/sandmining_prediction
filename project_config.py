@@ -1,4 +1,5 @@
 import os
 
 # Data Directory
-DATA_DIRECTORY = os.getcwd + '/data'
+PACKAGE_DIRECTORY = os.getcwd() + '/sandmining'
+DATA_DIRECTORY = PACKAGE_DIRECTORY + '/data'

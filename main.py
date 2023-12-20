@@ -14,11 +14,10 @@ def main(arguments):
     parser.add_argument('command', help="What step of the process to run",
                         choices=['load_observations', 'process_annotations'])
 
-    args = parser.parse_args(arguments)
+    args = parser.parse_args()
 
-    print(args)
-
-    match args:
+    command = args.command
+    match command:
         case 'load_observations':
             sandmining.load_observations()
         case 'process_annotations':
