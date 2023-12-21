@@ -1,12 +1,11 @@
 import numpy as np
 from PIL import Image
-from torch.utils.data import Dataset, DataLoader
+from torch.utils.data import Dataset
 from torchvision import transforms
-import random
 import rasterio
 from rasterio.windows import Window
 
-import random
+from visualizations import visualize_raster_on_image
 
 class PatchDataset(Dataset):
     def __init__(self, image_path, river_raster_path, labels_raster_path, transforms=None, patch_size=96):
@@ -30,7 +29,7 @@ class PatchDataset(Dataset):
         num_unique_patches = (self.image_height - self.patch_size + 1) * (self.image_width - self.patch_size + 1)
         return num_unique_patches
 
-    def __getitem__(self, idx):
+    def __getitem__(self, idx) -> dict:
         def find_nth_sliding_window_patch(idx, image_height, image_width, patch_size):
             """
             Finds the coordinates of the nth sliding window patch in a rectangular image.
@@ -87,7 +86,7 @@ class PatchDataset(Dataset):
         if np.count_nonzero(rivers_patch) > 0:
             in_river_bounds = 1
 
-        return {'image': np.array(patch), 'labels': labels_patch, 'in_river_bounds': in_river_bounds}
+        return {'src_patch': np.array(patch), 'labels_patch': labels_patch, 'in_river_bounds': in_river_bounds}
 
 # Example usage
 dataset = PatchDataset(image_path="/Users/sashikanth/Documents/sushi/sushi_personal/sandmining_prediction/sandmining/data/Observation0/rgb.tif",
@@ -96,7 +95,12 @@ dataset = PatchDataset(image_path="/Users/sashikanth/Documents/sushi/sushi_perso
 ds_length = len(dataset)
 random_patch_idxs = [(0, 0), (dataset.image_width - dataset.patch_size, dataset.image_height - dataset.patch_size)]
 for idx in random_patch_idxs:
-    patch = dataset.__getitem__(idx=idx)
+    return_dict = dataset.__getitem__(idx=idx)
+    src_patch = return_dict['src_patch']
+    labels_patch = return_dict['labels_patch']
+    in_river_bounds = return_dict['in_river_bounds']
+    labels_on_src_image = visualize_raster_on_image(raster_patch=labels_patch, src_patch=src_patch)
+    
 
 
 # dataloader = DataLoader(dataset, batch_size=32, shuffle=True)
