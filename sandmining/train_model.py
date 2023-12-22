@@ -10,6 +10,7 @@ from .dataset import PatchDataset
 
 NUM_CHANNELS = 3
 NUM_CLASSES = 1
+BATCH_SIZE = 4
 
 def train_model(model_name, epoch=1):
     # list of candidate models and their parameters
@@ -31,7 +32,21 @@ def train_model(model_name, epoch=1):
                        river_raster_path="/Users/sashikanth/Documents/sushi/sushi_personal/sandmining_prediction/sandmining/data/Observation0/rivers_mask_obs0.tif",
                        labels_raster_path="/Users/sashikanth/Documents/sushi/sushi_personal/sandmining_prediction/sandmining/data/Observation0/labels_mask_obs0.tif")
 
-    dataloader = DataLoader(dataset, batch_size=4, shuffle=True)  # Adjust batch size
+    # Not the best approach. Filters out samples that are out of river bounds.
+    #   and makes sure that samples are only used once. 
+    used_indices = set()  # Track used sample indices
+    def custom_collate_fn(batch):
+        valid_items = [item for item in batch if item is not None]
+        while len(valid_items) < BATCH_SIZE:
+            more_indices = torch.randint(len(dataloader.dataset), size=(BATCH_SIZE - len(valid_items),))
+            more_indices = [i for i in more_indices if i not in used_indices]  # Filter out used ones
+            used_indices.update(more_indices)  # Update used indices
+            more_items = [dataloader.dataset[i] for i in more_indices]
+            valid_items.extend([item for item in more_items if item is not None])
+        return torch.utils.data.dataloader.default_collate(valid_items)
+
+    dataloader = DataLoader(dataset, batch_size=BATCH_SIZE, collate_fn=custom_collate_fn)
+
     # Training loop
     for epoch in range(1):
         for src_patch, labels_patch, in_river_bounds in dataloader:

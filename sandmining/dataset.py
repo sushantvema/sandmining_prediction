@@ -89,9 +89,9 @@ class PatchDataset(Dataset):
         # Note whether the patch is completely or partially within the river bounds
         in_river_bounds = np.any(rivers_patch == 0)
 
-        print(np.array(patch).shape, labels_patch.shape, in_river_bounds)
-
-        return (np.array(patch), labels_patch, in_river_bounds)
+        if in_river_bounds:
+            return (np.array(patch), labels_patch)
+        return None
 
 # Example usage
 # dataset = PatchDataset(image_path="/Users/sashikanth/Documents/sushi/sushi_personal/sandmining_prediction/sandmining/data/Observation0/rgb.tif",

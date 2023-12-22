@@ -5,8 +5,6 @@ from sandmining.process_annotations import process_annotations
 from sandmining.train_model import train_model
 
 import argparse
-import ipdb
-import os
 import sys
 
 
