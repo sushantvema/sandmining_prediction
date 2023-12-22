@@ -5,7 +5,7 @@ from torchvision import transforms
 import rasterio
 from rasterio.windows import Window
 
-from visualizations import visualize_raster_on_image
+from .visualizations import visualize_raster_on_image
 
 class PatchDataset(Dataset):
     def __init__(self, image_path, river_raster_path, labels_raster_path, transforms=None, patch_size=96):
@@ -29,77 +29,83 @@ class PatchDataset(Dataset):
         num_unique_patches = (self.image_height - self.patch_size + 1) * (self.image_width - self.patch_size + 1)
         return num_unique_patches
 
-    def __getitem__(self, idx) -> dict:
-        def find_nth_sliding_window_patch(idx, image_height, image_width, patch_size):
+    def __getitem__(self, idx):
+        
+        def find_nth_sliding_window_patch(idx):
             """
             Finds the coordinates of the nth sliding window patch in a rectangular image.
 
             Args:
-                idx: Tuple of the x and y index of the top left-most patch in an image.
+                idx: Integer index representing the patch (0-based).
                 image_height: Height of the image in pixels.
                 image_width: Width of the image in pixels.
                 patch_size: Size of the square sliding window patch (assumed equal width and height).
 
             Returns:
-                A tuple containing the (x_min, y_min, x_max, y_max) coordinates of the first patch.
+                A tuple containing the (x_min, y_min, x_max, y_max) coordinates of the patch.
 
             Raises:
-                ValueError: If the patch size is larger than the image dimensions.
+                ValueError: If the patch size is larger than image dimensions or the index is out of bounds.
             """
-            # Check if patch size is valid
-            if patch_size > image_height or patch_size > image_width:
-                raise ValueError("Patch size cannot be larger than image dimensions.")
 
-            # Get and validate (x, y) index which parametrizes the patch
-            x_min, y_min = idx
-            x_max, y_max = x_min + patch_size, y_min + patch_size
-            if y_max >= image_height or x_max >= image_width:
-                raise ValueError("Patch is either partially or completely out of bounds.")
+            # Calculate the number of unique patches
+            num_patches = (self.image_height - self.patch_size + 1) * (self.image_width - self.patch_size + 1)
 
-            return x_min, y_min, x_max, y_max
+            # Validate index
+            if idx >= num_patches:
+                raise ValueError("Index is out of bounds for the given image and patch size.")
 
-        x_min, y_min, x_max, y_max = find_nth_sliding_window_patch(idx=idx, image_height=self.image_height,
-                                                                   image_width=self.image_width, patch_size=96)
+            max_patches_in_a_row = self.image_width - self.patch_size + 1
+            
+            # Calculate (x, y) coordinates from the integer index
+            left = idx % max_patches_in_a_row 
+            upper = idx // max_patches_in_a_row
+
+            # Calculate remaining coordinates
+            right = left + self.patch_size - 1
+            lower = upper + self.patch_size - 1
+
+            return left, upper, right, lower
+
+        left, upper, right, lower = find_nth_sliding_window_patch(idx=idx)
 
         # Extract the patch using slicing or PyTorch's F.grid_sample
-        patch = self.image.crop((x_min, y_min, x_max, y_max))
+        patch = self.image.crop((left, upper, right, lower))
 
         # Apply any image transformations if provided
         if self.transforms:
             patch = self.transforms(patch)
 
         # Calculate corresponding raster coordinates for the image patch
-        x0, y0, x1, y1 = patch.getbbox()
-        window = Window(col_off=x0, row_off=y0, width=self.patch_size, height=self.patch_size)
+        window = Window(col_off=left, row_off=upper, width=self.patch_size, height=self.patch_size)
 
         # Read the raster file with rasterio
         with rasterio.open(self.labels_raster_path) as labels_src:
             # Get image-to-raster transformation
-            labels_transform = labels_src.transform
             labels_patch = labels_src.read(window=window)
         with rasterio.open(self.river_raster_path) as rivers_src:
-            rivers_transform = rivers_src.transform
             rivers_patch = rivers_src.read(window=window)
 
         # Note whether the patch is completely or partially within the river bounds
-        in_river_bounds = 0
-        if np.count_nonzero(rivers_patch) > 0:
-            in_river_bounds = 1
+        in_river_bounds = np.any(rivers_patch == 0)
 
-        return {'src_patch': np.array(patch), 'labels_patch': labels_patch, 'in_river_bounds': in_river_bounds}
+        print(np.array(patch).shape, labels_patch.shape, in_river_bounds)
+
+        return (np.array(patch), labels_patch, in_river_bounds)
 
 # Example usage
-dataset = PatchDataset(image_path="/Users/sashikanth/Documents/sushi/sushi_personal/sandmining_prediction/sandmining/data/Observation0/rgb.tif",
-                       river_raster_path="/Users/sashikanth/Documents/sushi/sushi_personal/sandmining_prediction/sandmining/data/Observation0/rivers_mask_obs0.tif",
-                       labels_raster_path="/Users/sashikanth/Documents/sushi/sushi_personal/sandmining_prediction/sandmining/data/Observation0/labels_mask_obs0.tif")
-ds_length = len(dataset)
-random_patch_idxs = [(0, 0), (dataset.image_width - dataset.patch_size, dataset.image_height - dataset.patch_size)]
-for idx in random_patch_idxs:
-    return_dict = dataset.__getitem__(idx=idx)
-    src_patch = return_dict['src_patch']
-    labels_patch = return_dict['labels_patch']
-    in_river_bounds = return_dict['in_river_bounds']
-    labels_on_src_image = visualize_raster_on_image(raster_patch=labels_patch, src_patch=src_patch)
+# dataset = PatchDataset(image_path="/Users/sashikanth/Documents/sushi/sushi_personal/sandmining_prediction/sandmining/data/Observation0/rgb.tif",
+#                        river_raster_path="/Users/sashikanth/Documents/sushi/sushi_personal/sandmining_prediction/sandmining/data/Observation0/rivers_mask_obs0.tif",
+#                        labels_raster_path="/Users/sashikanth/Documents/sushi/sushi_personal/sandmining_prediction/sandmining/data/Observation0/labels_mask_obs0.tif")
+# ds_length = len(dataset)
+# random_patch_idxs = [(0, 0), (dataset.image_width - dataset.patch_size, dataset.image_height - dataset.patch_size)]
+# import ipdb; ipdb.set_trace()
+# for idx in random_patch_idxs:
+#     return_tuple = dataset.__getitem__(idx=idx)
+#     src_patch = return_tuple[0]
+#     labels_patch = return_tuple[1]
+#     in_river_bounds = return_tuple[2]
+#     labels_on_src_image = visualize_raster_on_image(raster_patch=labels_patch, src_patch=src_patch)
     
 
 
