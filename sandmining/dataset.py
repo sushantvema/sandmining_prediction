@@ -55,27 +55,32 @@ class PatchDataset(Dataset):
             if idx >= num_patches:
                 raise ValueError("Index is out of bounds for the given image and patch size.")
 
-            max_patches_in_a_row = self.image_width - self.patch_size + 1
+            max_patches_in_a_row = self.image_width - self.patch_size +1
             
             # Calculate (x, y) coordinates from the integer index
             left = idx % max_patches_in_a_row 
-            upper = idx // max_patches_in_a_row
+            upper = idx // max_patches_in_a_row 
 
             # Calculate remaining coordinates
-            right = left + self.patch_size - 1
-            lower = upper + self.patch_size - 1
+            right = left + self.patch_size 
+            lower = upper + self.patch_size 
+            
+            if (right >= self.image_width) or (lower >= self.image_height):
+                print(f"Edge case: idx-{idx}, left-{left}, upper-{upper}, right-{right}, lower-{lower}")
+                left -= 1
+                right -= 1
+                upper -= 1
+                lower -= 1
 
             return left, upper, right, lower
 
         left, upper, right, lower = find_nth_sliding_window_patch(idx=idx)
 
         # Extract the patch using slicing or PyTorch's F.grid_sample
-        patch = self.image.crop((left, upper, right, lower))
-
+        patch = self.image.crop((int(left), int(upper), int(right), int(lower)))
         # Apply any image transformations if provided
         if self.transforms:
             patch = self.transforms(patch)
-
         # Calculate corresponding raster coordinates for the image patch
         window = Window(col_off=left, row_off=upper, width=self.patch_size, height=self.patch_size)
 
@@ -90,7 +95,7 @@ class PatchDataset(Dataset):
         in_river_bounds = np.any(rivers_patch == 0)
 
         if in_river_bounds:
-            return (np.array(patch), labels_patch)
+            return (np.array(patch), labels_patch, [left, upper, right, lower])
         return None
 
 # Example usage
