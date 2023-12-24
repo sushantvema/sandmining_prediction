@@ -91,3 +91,6 @@ ENV/
 
 # dev notes
 NOTES.md
+
+# Model weights
+*.pth
