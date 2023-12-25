@@ -10,7 +10,6 @@ from shapely.ops import unary_union
 
 from project_config import DATA_DIRECTORY
 
-import json
 import numpy as np
 import os
 
@@ -23,73 +22,21 @@ def process_annotations():
         Step 3: Visualize the rasterized shapes on top of the RGB image. 
     """
     for observation_name in os.listdir(DATA_DIRECTORY):
-        if (not ".DS_Store" in observation_name) and (os.path.isdir(DATA_DIRECTORY + '/' + observation_name)):
-            OBSERVATION_DIRECTORY = DATA_DIRECTORY + '/{}'.format(observation_name)
+        if (not ".DS_Store" in observation_name) and (os.path.isdir(DATA_DIRECTORY / observation_name)):
+            OBSERVATION_DIRECTORY = DATA_DIRECTORY / '{}'.format(observation_name)
             obs_number = observation_name[-1]
-            METADATA_DIRECTORY = OBSERVATION_DIRECTORY + '/metadata{}.csv'.format(obs_number)
+            METADATA_DIRECTORY = OBSERVATION_DIRECTORY / 'metadata{}.csv'.format(obs_number)
             metadata = pd.read_csv(METADATA_DIRECTORY)
             height = metadata['height'].values[0]
             width = metadata['width'].values[0]
             print(obs_number, height, width)
-            LABELS_GEOJSON = OBSERVATION_DIRECTORY + '/annotations.geojson'
-            RIVERS_GEOJSON = OBSERVATION_DIRECTORY + '/rivers.geojson'
-            # rasterize_annotation(geojson_dir=LABELS_GEOJSON, target_dir=OBSERVATION_DIRECTORY, 
-            #                      save_name='labels_mask.tif', height=height, width=width)
-            # rasterize_annotation(geojson_dir=RIVERS_GEOJSON, target_dir=OBSERVATION_DIRECTORY, 
-            #                      save_name='rivers_mask.tif', height=height, width=width)
-            generate_mask(raster_path=OBSERVATION_DIRECTORY+'/rgb.tif', shape_path=LABELS_GEOJSON, 
+            LABELS_GEOJSON = OBSERVATION_DIRECTORY / 'annotations.geojson'
+            RIVERS_GEOJSON = OBSERVATION_DIRECTORY / 'rivers.geojson' 
+            generate_mask(raster_path=OBSERVATION_DIRECTORY / 'rgb.tif', shape_path=LABELS_GEOJSON, 
                           output_path=OBSERVATION_DIRECTORY, file_name='labels_mask_obs{}.tif'.format(obs_number))
-            generate_mask(raster_path=OBSERVATION_DIRECTORY+'/rgb.tif', shape_path=RIVERS_GEOJSON, 
+            generate_mask(raster_path=OBSERVATION_DIRECTORY / 'rgb.tif', shape_path=RIVERS_GEOJSON, 
                           output_path=OBSERVATION_DIRECTORY, file_name='rivers_mask_obs{}.tif'.format(obs_number))
     return
-
-def rasterize_annotation(geojson_dir, target_dir, save_name, height, width, crs="EPSG:4326", driver="GTiff", dtype="uint8"):
-    
-    # Load GeoJSON data
-    with open(geojson_dir, "r", encoding="utf-8") as f:
-        geojson_features = geojson.load(f)
-
-    train_df = gpd.read_file(geojson_dir)
-
-    image = target_dir + "/" + "rgb.tif"
-
-    with rasterio.open(image) as src:
-        raster_image = src.read()
-        raster_meta = src.meta
-        transform = src.transform
-
-    print("CRS Raster: {}, CRS Vector {}".format(train_df.crs, src.crs))
-
-    # Generate profile parameters
-    profile_args = {
-        "driver": driver,
-        "height": height,
-        "width": width,
-        "count": 1,
-        "dtype": dtype,
-        "crs": crs,
-        "transform": transform,  # Calculate or obtain the transform based on your data
-    }
-
-    # Create an empty raster for the mask using 'profiles.Profile'
-    OUTPUT_FILE = target_dir + '/' + save_name
-
-    shapes = [feature["geometry"] for feature in geojson_features['features']]
-    with rasterio.open(OUTPUT_FILE, "w", **profiles.Profile(**profile_args)) as dst:
-        # Create an empty array with desired dimensions and data type
-        array = np.zeros((height, width), dtype=dtype)
-
-        # Set the nodata value if needed
-        array[:] = 0
-
-        # Perform the rasterization on the array
-        rasterize(shapes, out_shape=array.shape, out=array, fill=0, transform=transform, all_touched=True)
-
-        # Write the rasterized data to the new file
-        dst.write(array, 1)
-    
-
-    dst.close()
 
 def generate_mask(raster_path, shape_path, output_path, file_name):
     """Function that generates a binary mask from a vector file (shp or geojson)
@@ -168,7 +115,7 @@ def generate_mask(raster_path, shape_path, output_path, file_name):
                      all_touched=True)
     
     #Salve
-    mask = mask.astype("uint16")
+    mask = mask.astype("uint8")
     
     bin_mask_meta = src.meta.copy()
     bin_mask_meta.update({'count': 1})

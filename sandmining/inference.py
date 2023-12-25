@@ -11,7 +11,7 @@ from .dataset import PatchDataset
 from project_config import MODELS_DIRECTORY, OBS_2_DIRECTORY
 from .visualizations import visualize_raster_on_image
 
-NUM_SAMPLES = 100 # There are 479 samples in the dataloader, but I haven't
+NUM_SAMPLES = 10 # There are 479 samples in the dataloader, but I haven't
                     # Figured out how to correctly implement the len function
 THRESHOLD = 0.5
 
@@ -40,6 +40,7 @@ def evaluate_model():
         prediction = np.argmax(predictions[i].numpy(), axis=0)  # Assuming segmentation model
         prediction = predictions[i].numpy() >= THRESHOLD
         import ipdb; ipdb.set_trace()
+        prediction = torch.from_numpy(prediction).permute(2, 1, 0).numpy()
         pred_img = visualize_raster_on_image(raster_patch=prediction, src_patch=patch)  # Implement your visualization function
         pred_img.save(OBS_2_DIRECTORY / f"pred_patch{i}.jpg")
         img_jpg = mpimg.imread(OBS_2_DIRECTORY / f"pred_patch{i}.jpg")

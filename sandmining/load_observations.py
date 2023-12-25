@@ -1,11 +1,8 @@
 from PIL import Image
 from PIL.ExifTags import TAGS
 
-from sandmining.google_cloud import download_blob
-
 import csv
 import glob
-import ipdb
 import json
 import os
 import pathlib

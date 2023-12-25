@@ -1,2 +1,4 @@
 filename,size,height,width,format,mode,is_animated,frames
+labels_mask_obs0.tif,"(459, 1231)",1231,459,TIFF,L,False,1
 rgb.tif,"(459, 1231)",1231,459,TIFF,RGB,False,1
+rivers_mask_obs0.tif,"(459, 1231)",1231,459,TIFF,L,False,1
