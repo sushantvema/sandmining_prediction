@@ -10,12 +10,14 @@ from segmentation_models_pytorch.encoders import get_preprocessing_fn
 # Import custom dataset for sampling
 from .dataset import PatchDataset
 from .visualizations import visualize_binary_labels_on_rgb_image
-from project_config import OBS_0_DIRECTORY, OBS_1_DIRECTORY, OBS_2_DIRECTORY, MODELS_DIRECTORY
 
-NUM_CHANNELS = 3
-NUM_CLASSES = 1
-BATCH_SIZE = 4
-SAMPLING_FRACTION = 0.25
+# Config variables
+from project_config import OBS_0_DIRECTORY, OBS_1_DIRECTORY, OBS_2_DIRECTORY, MODELS_DIRECTORY
+from project_config import NUM_EPOCHS, NUM_CHANNELS, NUM_CLASSES, BATCH_SIZE, SAMPLES_TO_TRAIN_PER_OBSERVATION
+from project_config import SAMPLES_PER_SAVE_WEIGHTS
+
+import datetime
+import time
 
 def train_model(model_name, epoch=1):
     # list of candidate models and their parameters
@@ -41,33 +43,18 @@ def train_model(model_name, epoch=1):
         labels_raster_path = OBSERVATION / 'labels_mask_obs{}.tif'.format(idx)
 
         dataset = PatchDataset(image_path = image_path,
+                               observation_directory=OBSERVATION,
                         river_raster_path = river_raster_path,
                         labels_raster_path = labels_raster_path)
-        
-        # Create a sampler that selects a random subset of indices
-        # sampler = SubsetRandomSampler(torch.randperm(len(dataset))[:int(SAMPLING_FRACTION * len(dataset))])
-
-        # Not the best approach. Filters out samples that are out of river bounds.
-        #   and makes sure that samples are only used once. 
-        used_indices = set()  # Track used sample indices
-        def custom_collate_fn(batch):
-            valid_items = [item for item in batch if item is not None]
-            while len(valid_items) < BATCH_SIZE:
-                more_indices = torch.randint(len(dataloader.dataset), size=(BATCH_SIZE - len(valid_items),))
-                more_indices = [int(i) for i in more_indices if i not in used_indices]  # Filter out used ones
-                used_indices.update(more_indices)  # Update used indices
-                more_items = [dataloader.dataset[i] for i in more_indices]
-                valid_items.extend([item for item in more_items if item is not None])
-            return torch.utils.data.dataloader.default_collate(valid_items)
-
-        dataloader = DataLoader(dataset, batch_size=BATCH_SIZE, collate_fn=custom_collate_fn)
+        num_valid_samples = len(dataset)
+        sampler = SubsetRandomSampler(indices=dataset.valid_indices)
+        dataloader = DataLoader(dataset, batch_size=BATCH_SIZE, sampler=sampler)
 
         # Training loop
-        for epoch in range(1):
+        for epoch in range(NUM_EPOCHS):
             for idx2, (src_patch, labels_patch, coordinates) in enumerate(dataloader):
-                print(f"Processed {idx2*4} samples out of {len(dataset)}", end="\r")
-                # visualize_binary_labels_on_rgb_image(rgb_image_path="/Users/sashikanth/Documents/sushi/sushi_personal/sandmining_prediction/sandmining/data/Observation0/rgb.tif",
-                #                                      binary_labels_patches=labels_patch, coordinates=coordinates, target_directory=None)
+                if (idx2 * 4) // SAMPLES_TO_TRAIN_PER_OBSERVATION >= 1:
+                    break
                 # Forward pass
                 reshaped_src_patch = src_patch.permute(0, 3, 1, 2)  # Reshape to (4, 3, 96, 96)
                 reshaped_src_patch = reshaped_src_patch.float()
@@ -79,10 +66,13 @@ def train_model(model_name, epoch=1):
                 loss.backward()
                 optimizer.step()
                 
+                print(f"Processed {idx2*4} samples out of {len(dataset)} valid samples. ", end="\r")
+
                 if idx2*4 % 96 == 0:
                     # Save the trained model (optional)
                     print("\nSaving intermediate model")
-                    dest = MODELS_DIRECTORY / "{}_{}.pth".format(model_name, f"dec22_1830pm_{idx}_{idx2}")
+                    timestamp = datetime.date.fromtimestamp(time.time()).__str__()
+                    dest = MODELS_DIRECTORY / "{}_{}.pth".format(model_name, f"{timestamp}_{idx}_{idx2}_{int(time.time())}")
                     torch.save(model.state_dict(), dest)
 
             # Print epoch loss

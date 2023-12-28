@@ -94,3 +94,6 @@ NOTES.md
 
 # Model weights
 *.pth
+
+# macOS files
+*.DS_Store

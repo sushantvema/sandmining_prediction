@@ -8,7 +8,9 @@ import os
 import pathlib
 import requests
 
-with open('sandmining/data/observations.json', 'r') as f:
+from project_config import OBSERVATIONS_JSON
+
+with open(OBSERVATIONS_JSON, 'r') as f:
     observations_json = json.load(f)
 
 def load_observations(observations_json=observations_json):
