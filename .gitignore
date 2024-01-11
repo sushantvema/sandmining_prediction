@@ -97,3 +97,6 @@ NOTES.md
 
 # macOS files
 *.DS_Store
+
+# jpg output images
+*.jpg

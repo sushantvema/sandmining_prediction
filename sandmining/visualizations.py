@@ -2,6 +2,9 @@ import matplotlib.pyplot as plt  # For interactive plotting and saving
 import numpy as np
 from PIL import Image
 from PIL import ImageFilter
+import torch
+
+from project_config import NUM_PREDS_PER_MESSAGE
 
 def visualize_raster_on_image(raster_patch, src_patch):
     """
@@ -19,7 +22,7 @@ def visualize_raster_on_image(raster_patch, src_patch):
 
     # Create opaque overlay with bold borders:
     overlay = Image.fromarray(
-        np.where(raster_patch, np.full((96, 96, 3), (0, 0, 255)), np.full((96, 96, 3), (0, 0, 0))),
+        np.where(raster_patch, (0, 255, 0), (0, 0, 0)).astype(np.uint8),  # Remove extra dimension
         mode="RGB"
     )
 
@@ -32,36 +35,20 @@ def visualize_raster_on_image(raster_patch, src_patch):
     src_with_overlay = Image.blend(src_patch_to_image, overlay, alpha=0.5)  # Semi-transparent for visibility
     return src_with_overlay
 
-def visualize_binary_labels_on_rgb_image(
-    rgb_image_path,
-    binary_labels_patches,
-    coordinates,
-    target_directory,
-):
+def visualize_binary_labels(labels):
     """
-    Visualizes binary label patches on top of an RGB image.
+    Visualizes a 2D binary label image with yellow pixels for values of 1.
 
     Args:
-        rgb_image_path (str): Path to the RGB image file.
-        binary_labels_patches (list): List of binary label patches (as NumPy arrays).
-        coordinates (list): List of tuples (x0, y0, x1, y1) representing the coordinates
-            of each patch on the RGB image.
-        target_directory (str, optional): Directory to save the visualization.
-            Defaults to "visualizations".
+        labels (np.array): 2D binary label array with shape (height, width).
+
+    Returns:
+        Image: PIL Image object representing the visual label.
     """
 
-    # 1. Load RGB image
-    rgb_image = Image.open(rgb_image_path)
-
-    # 2. Create a combined image with labels overlaid
-    combined_image = create_combined_image(rgb_image, binary_labels_patches, coordinates)
-
-    # 3. Plot the combined image interactively
-    plt.imshow(combined_image)
-    plt.show()
-
-    # 4. Save the combined image to the target directory
-    save_combined_image(combined_image, target_directory)
+    rgb_labels = np.where(labels.reshape(96, 96), (255, 255, 0), (0, 0, 0))  # Map 1s to yellow, 0s to black
+    rgb_labels = rgb_labels.astype(np.uint8)  # Convert to uint8 for PIL compatibility
+    return Image.fromarray(rgb_labels, mode="RGB")
 
 
 def create_combined_image(rgb_image, binary_labels_patches, coordinates):
@@ -107,6 +94,43 @@ def overlay_images(rgb_patch, label_patch, alpha_channel=None):
         # Simple color mapping for binary labels (e.g., red for clarity):
         label_patch = np.where(label_patch > 0, np.array([[255, 0, 0]] * 96), label_patch)  # Red color for labels
         return np.dstack((rgb_patch, label_patch)).astype(np.uint8)  # Combine channels
+
+def create_mask_from_patches(model, patches, coordinates, observation_img_dir, prediction_threshold):
+    """
+    Stitches predictions from image patches into a binary mask.
+
+    Args:
+        patches (list): List of tuples containing (patch_image, box), where:
+            - patch_image: PIL Image object of the patch.
+            - box: 4-tuple of coordinates (left, top, right, bottom) defining the patch's 
+                   location in the original image.
+
+    Returns:
+        np.array: Binary mask with the same dimensions as the original image.
+    """
+    import ipdb; ipdb.set_trace()
+    original_image = Image.open(observation_img_dir / 'rgb.tif')
+    original_image_width, original_image_height = original_image.size
+    mask = np.zeros((original_image_height, original_image_width), dtype=np.uint8)  # Initialize mask
+
+    for idx, (patch_image, coordinates) in enumerate(zip(patches, coordinates)):
+        # Inference on the patch (replace with your model's inference code):
+        patch_image = torch.stack([patch_image])
+        prediction = model.predict(patch_image)  # Replace with your model's inference method
+        print(f"{(idx // NUM_PREDS_PER_MESSAGE) * NUM_PREDS_PER_MESSAGE} patches inferenced.") if idx % 25 == 0 else None
+
+        left, top, right, bottom = coordinates
+        patch_width = right - left
+        patch_height = bottom - top
+
+        # Convert prediction to binary (assuming single-class segmentation):
+        binary_prediction = (prediction > prediction_threshold) * 255
+        binary_prediction_2d = binary_prediction[0][0]
+
+        # Stitch prediction into the mask:
+        mask[top:top+patch_height, left:left+patch_width] = binary_prediction_2d
+
+    return mask
 
 
 def save_combined_image(combined_image, target_directory):

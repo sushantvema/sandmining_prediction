@@ -63,6 +63,9 @@ class PatchDataset(Dataset):
 
     def __getitem__(self, idx):
 
+        # Calculate the number of unique patches
+        num_possible_patches = (self.image_height - self.patch_size + 1) * (self.image_width - self.patch_size + 1)
+
         def find_nth_sliding_window_patch(idx):
             """
             Finds the coordinates of the nth sliding window patch in a rectangular image.
@@ -80,10 +83,6 @@ class PatchDataset(Dataset):
                 ValueError: If the patch size is larger than image dimensions or the index is out of bounds.
                             Or if the patch is not within the river bounds according to the threshold.
             """
-
-            # Calculate the number of unique patches
-            num_possible_patches = (self.image_height - self.patch_size + 1) * (self.image_width - self.patch_size + 1)
-
             # Validate index
             if idx >= num_possible_patches:
                 raise ValueError("Index is out of bounds for the given image and patch size.")
@@ -98,12 +97,12 @@ class PatchDataset(Dataset):
             right = left + self.patch_size 
             lower = upper + self.patch_size 
             
+            # edge case with bottom most patches
             if (right >= self.image_width) or (lower >= self.image_height):
                 print(f"Edge case: idx-{idx}, left-{left}, upper-{upper}, right-{right}, lower-{lower}")
-                left -= 1
-                right -= 1
-                upper -= 1
-                lower -= 1
+                difference = self.image_height - lower
+                upper += difference
+                lower += difference
 
             return left, upper, right, lower
 
