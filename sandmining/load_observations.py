@@ -1,5 +1,4 @@
 from PIL import Image
-from PIL.ExifTags import TAGS
 
 import csv
 import glob
@@ -14,6 +13,9 @@ with open(OBSERVATIONS_JSON, 'r') as f:
     observations_json = json.load(f)
 
 def load_observations(observations_json=observations_json):
+    print("-------------")
+    print("Loading data from sources.")
+    print("-------------")
     for idx, observation in enumerate(observations_json):
         parent_dir = os.getcwd()
         target_dir = parent_dir + '/sandmining/data/Observation{}'.format(idx)
@@ -31,6 +33,8 @@ def load_observations(observations_json=observations_json):
         download_file(uri_to_rivers, target_dir + '/rivers.geojson')
 
         read_tifs_as_pil_image(target_dir)
+        print(f"Ingested data for Observation {observation}")
+    print("Data ingestion complete.")
     return
 
 def download_file(uri, destination):
@@ -46,7 +50,6 @@ def read_tifs_as_pil_image(target_dir):
     # Search for TIFF image files in the directory
     for image_path in glob.glob(target_dir + "/*.tif"):
 
-        # TODO: Figure out how to download s2 images properly
         if "s2" in image_path:
             continue  
 

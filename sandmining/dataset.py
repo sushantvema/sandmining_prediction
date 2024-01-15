@@ -1,13 +1,11 @@
 import numpy as np
 from PIL import Image
 from torch.utils.data import Dataset
-from torchvision import transforms
 import rasterio
 from rasterio.windows import Window
 
 import pickle as pkl
 
-from .visualizations import visualize_raster_on_image
 from project_config import IN_RIVER_BOUNDS_THRESHOLD
 
 class PatchDataset(Dataset):
@@ -99,7 +97,7 @@ class PatchDataset(Dataset):
             
             # edge case with bottom most patches
             if (right >= self.image_width) or (lower >= self.image_height):
-                print(f"Edge case: idx-{idx}, left-{left}, upper-{upper}, right-{right}, lower-{lower}")
+                # print(f"Edge case: idx-{idx}, left-{left}, upper-{upper}, right-{right}, lower-{lower}")
                 difference = self.image_height - lower
                 upper += difference
                 lower += difference

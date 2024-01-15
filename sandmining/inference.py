@@ -7,11 +7,11 @@ from torch.utils.data import DataLoader
 import numpy as np
 
 from .dataset import PatchDataset
-from project_config import MODELS_DIRECTORY
+from project_config import MODELS_DIRECTORY, OUTPUT_DIRECTORY
 from project_config import NUM_SAMPLES, PREDICTION_THRESHOLD, SKIP_N
 from project_config import OBSERVATION_FOR_EVALUATION
 from project_config import MODEL_TO_USE
-from .visualizations import visualize_raster_on_image, visualize_binary_labels, create_mask_from_patches
+from .visualizations import visualize_raster_on_image, create_mask_from_patches, side_by_side_visualizations
 
 import random
 
@@ -96,13 +96,17 @@ def evaluate_model(predict_uniformly=False):
         patches_tensor = torch.stack([p.permute(2, 1, 0) for p in patches_tensor])
 
         print("-------------")
-        print("Starting inference.")
+        print(f"Starting inference on {NUM_SAMPLES} sampled patches.")
         print("-------------")
 
         stitched_predictions_mask = create_mask_from_patches(model=model, patches=patches_tensor, 
                                  coordinates=coordinates_list, observation_img_dir=OBSERVATION_FOR_EVALUATION,
                                  prediction_threshold=PREDICTION_THRESHOLD)
-        import ipdb; ipdb.set_trace()
+        
+        stitched_predictions_mask_img = Image.fromarray(stitched_predictions_mask)
+        stitched_predictions_mask_img.save(fp=OUTPUT_DIRECTORY / f"stitched_predictions_mask_obs{observation_number}.jpg")
+
+        side_by_side_visualizations(OBSERVATION_FOR_EVALUATION, OUTPUT_DIRECTORY)
 
 def sample_images(dataloader, num_samples, skip_n):
     sampled_images = []

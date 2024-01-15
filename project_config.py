@@ -13,6 +13,9 @@ OBS_2_DIRECTORY = DATA_DIRECTORY / 'Observation2'
 # Models Directory
 MODELS_DIRECTORY = PACKAGE_DIRECTORY / 'models'
 
+# Output Directory
+OUTPUT_DIRECTORY = PACKAGE_DIRECTORY / 'image_outputs'
+
 # Data Preprocessing Parameters
 IN_RIVER_BOUNDS_THRESHOLD = 0.85
 
@@ -29,9 +32,9 @@ SAMPLES_PER_SAVE_WEIGHTS = 96
 
 # Inference / Evaluation Parameters
 OBSERVATION_FOR_EVALUATION = OBS_2_DIRECTORY
-MODEL_TO_USE = "unetplusplus_2024-01-11_1_240_1704963006.pth" 
-NUM_SAMPLES = 2000 
-PREDICTION_THRESHOLD = 0.75
+MODEL_TO_USE = "unetplusplus_2024-01-13_1_240_1705139266.pth" 
+NUM_SAMPLES = 1000 
+PREDICTION_THRESHOLD = 0.85
 SKIP_N = 17
 
 # Logging Parameters

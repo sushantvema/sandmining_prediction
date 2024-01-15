@@ -1,7 +1,6 @@
 import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader, SubsetRandomSampler
-from torchvision import transforms  # For data augmentation (optional)
 import torchvision.transforms.functional as TF
 from torchvision.models.segmentation import deeplabv3_resnet50, fcn_resnet50
 from segmentation_models_pytorch import UnetPlusPlus
@@ -35,6 +34,8 @@ class DiceLoss(nn.Module):
         return 1 - dice
 
 def train_model(model_name, epoch=1):
+    print("-------------")
+    print(f"Training {model_name} for {epoch} epoch.")
     # list of candidate models and their parameters
     models = {
         "unetplusplus": UnetPlusPlus,
@@ -49,6 +50,9 @@ def train_model(model_name, epoch=1):
     # loss_fn = nn.BCEWithLogitsLoss()  # For binary segmentation
     loss_fn = DiceLoss()
     optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
+    print(f"Loss function: {DiceLoss.__name__}")
+    print(f"Optimizer: {optimizer.__class__.__name__}")
+    print("-------------")
 
     # Load data
     for idx, OBSERVATION in enumerate(OBSERVATIONS_FOR_TRAINING):
@@ -64,6 +68,9 @@ def train_model(model_name, epoch=1):
         num_valid_samples = len(dataset)
         sampler = SubsetRandomSampler(indices=list(dataset.valid_indices))
         dataloader = DataLoader(dataset, batch_size=BATCH_SIZE, sampler=sampler)
+
+        obs_number = dataset.observation_number
+        print(f"Lower bound on the total number of valid samples we can train from for observation {obs_number}: {len(dataset)}.")
 
         # Training loop
         for epoch in range(NUM_EPOCHS):
@@ -81,7 +88,7 @@ def train_model(model_name, epoch=1):
                 loss.backward()
                 optimizer.step()
                 
-                print(f"Processed {idx2*4} samples out of {len(dataset)} valid samples. ", end="\r")
+                print(f"Processed {idx2*4} samples out of {SAMPLES_TO_TRAIN_PER_OBSERVATION} slated for training.", end="\r")
 
                 if idx2*4 % SAMPLES_PER_SAVE_WEIGHTS == 0:
                     # Save the trained model (optional)

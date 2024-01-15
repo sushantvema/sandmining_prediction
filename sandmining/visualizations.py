@@ -95,6 +95,30 @@ def overlay_images(rgb_patch, label_patch, alpha_channel=None):
         label_patch = np.where(label_patch > 0, np.array([[255, 0, 0]] * 96), label_patch)  # Red color for labels
         return np.dstack((rgb_patch, label_patch)).astype(np.uint8)  # Combine channels
 
+def overlay_mask(source_image, mask_image):
+    """
+    Overlays a binary mask onto a source RGB image.
+
+    Args:
+        source_image: NumPy array of the source RGB image.
+        mask_image: NumPy array of the binary mask image (same dimensions).
+
+    Returns:
+        NumPy array of the resulting image with the mask applied.
+    """
+
+    # # Check for dimension compatibility
+    # if source_image.shape != mask_image.shape:
+    #     raise ValueError("Source image and mask image must have the same dimensions.")
+
+    # Create a 3-channel mask for RGB compatibility
+    mask_rgb = np.repeat(mask_image[:, :, np.newaxis], 3, axis=2)
+
+    # Apply the mask using element-wise multiplication
+    result = np.where(mask_rgb, source_image, 0)
+
+    return result
+
 def create_mask_from_patches(model, patches, coordinates, observation_img_dir, prediction_threshold):
     """
     Stitches predictions from image patches into a binary mask.
@@ -108,7 +132,6 @@ def create_mask_from_patches(model, patches, coordinates, observation_img_dir, p
     Returns:
         np.array: Binary mask with the same dimensions as the original image.
     """
-    import ipdb; ipdb.set_trace()
     original_image = Image.open(observation_img_dir / 'rgb.tif')
     original_image_width, original_image_height = original_image.size
     mask = np.zeros((original_image_height, original_image_width), dtype=np.uint8)  # Initialize mask
@@ -117,7 +140,8 @@ def create_mask_from_patches(model, patches, coordinates, observation_img_dir, p
         # Inference on the patch (replace with your model's inference code):
         patch_image = torch.stack([patch_image])
         prediction = model.predict(patch_image)  # Replace with your model's inference method
-        print(f"{(idx // NUM_PREDS_PER_MESSAGE) * NUM_PREDS_PER_MESSAGE} patches inferenced.") if idx % 25 == 0 else None
+        if idx % NUM_PREDS_PER_MESSAGE == 0:
+            print(f"{(idx // NUM_PREDS_PER_MESSAGE) * NUM_PREDS_PER_MESSAGE} patches inferenced.") if idx % 25 == 0 else None
 
         left, top, right, bottom = coordinates
         patch_width = right - left
@@ -132,12 +156,52 @@ def create_mask_from_patches(model, patches, coordinates, observation_img_dir, p
 
     return mask
 
-
-def save_combined_image(combined_image, target_directory):
+def side_by_side_visualizations(OBSERVATION_FOR_EVALUATION, OUTPUT_DIRECTORY, figsize=(15, 5)):
     """
-    Saves the combined image to the target directory in a suitable format.
-    """
-    return
-    # ... (Implementation for saving the image, handling file extensions, etc.)
-    combined_image.save("{}/combined.tif".format(target_directory))
+    Visualizes 3 images side by side on separate subplots.
+        Image1: Source image with river bounds
+        Image2: Labels image
+        Image3: Stitched predictions image:
 
+    Args:
+        images: A list of 3 image arrays.
+        arrangement: 'horizontal' or 'vertical' for subplot arrangement.
+        figsize: The figure size.
+    """
+    
+    # Load images as np arrays
+    obs_number = str(OBSERVATION_FOR_EVALUATION)[-1]
+    rgb_img_arr = np.array(Image.open(OBSERVATION_FOR_EVALUATION / 'rgb.tif'))
+    rivers_mask_arr = np.array(Image.open(OBSERVATION_FOR_EVALUATION / f"rivers_mask_obs{obs_number}.tif"))
+    src_img_rivers_overlay_arr = overlay_mask(rgb_img_arr, rivers_mask_arr)
+    labels_arr = np.array(Image.open(OBSERVATION_FOR_EVALUATION / f"labels_mask_obs{obs_number}.tif"))
+    stitched_predictions_mask_arr = np.array(Image.open(OUTPUT_DIRECTORY / f"stitched_predictions_mask_obs{obs_number}.jpg"))
+
+    images = [src_img_rivers_overlay_arr, labels_arr, stitched_predictions_mask_arr]
+
+    num_images = len(images)
+
+    if num_images != 3:
+        raise ValueError("This function is designed to visualize 3 images.")
+
+    height, width, _ = images[0].shape
+    arrangement = "vertical" if width >= height else "horizontal"
+
+
+    if arrangement == 'horizontal':
+        num_rows = 1
+        num_cols = 3
+    else:
+        num_rows = 3
+        num_cols = 1
+
+    fig, axes = plt.subplots(num_rows, num_cols, figsize=figsize)
+
+    for i, image in enumerate(images):
+        axes.flat[i].imshow(image)
+        # axes.flat[i].axis('off')  # Remove axes for cleaner visualization
+
+    plt.tight_layout()  # Adjust spacing between subplots
+    plt.show()
+
+    return None

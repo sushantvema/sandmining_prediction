@@ -18,32 +18,31 @@ def process_annotations():
     For each of the observations in the data directory, get the height and the width
     as well as the file path for the .tif RGB image. 
         Step 1: Rasterize the annotations and rivers.
-        Step 2: Save them the data directory.
-        Step 3: Visualize the rasterized shapes on top of the RGB image. 
+        Step 2: Save them the data directory. 
     """
+    print("-------------")
+    print("Generating binary masks for label annotations and river borders for each observation.")
+    print("-------------")
     for observation_name in os.listdir(DATA_DIRECTORY):
         if (not ".DS_Store" in observation_name) and (os.path.isdir(DATA_DIRECTORY / observation_name)):
             OBSERVATION_DIRECTORY = DATA_DIRECTORY / '{}'.format(observation_name)
             obs_number = observation_name[-1]
-            METADATA_DIRECTORY = OBSERVATION_DIRECTORY / 'metadata{}.csv'.format(obs_number)
-            metadata = pd.read_csv(METADATA_DIRECTORY)
-            height = metadata['height'].values[0]
-            width = metadata['width'].values[0]
-            print(obs_number, height, width)
             LABELS_GEOJSON = OBSERVATION_DIRECTORY / 'annotations.geojson'
             RIVERS_GEOJSON = OBSERVATION_DIRECTORY / 'rivers.geojson' 
             generate_mask(raster_path=OBSERVATION_DIRECTORY / 'rgb.tif', shape_path=LABELS_GEOJSON, 
                           output_path=OBSERVATION_DIRECTORY, file_name='labels_mask_obs{}.tif'.format(obs_number))
             generate_mask(raster_path=OBSERVATION_DIRECTORY / 'rgb.tif', shape_path=RIVERS_GEOJSON, 
                           output_path=OBSERVATION_DIRECTORY, file_name='rivers_mask_obs{}.tif'.format(obs_number))
+    print("Created masks and persisted them in relevant data directories.")
     return
 
 def generate_mask(raster_path, shape_path, output_path, file_name):
-    """Function that generates a binary mask from a vector file (shp or geojson)
-    raster_path = path to the .tif;
-    shape_path = path to the shapefile or GeoJson.
-    output_path = Path to save the binary mask.
-    file_name = Name of the file.
+    """
+    Function that generates a binary mask from a vector file (shp or geojson)
+        raster_path = path to the .tif;
+        shape_path = path to the shapefile or GeoJson.
+        output_path = Path to save the binary mask.
+        file_name = Name of the file.
     """
     #load raster
     with rasterio.open(raster_path, "r") as src:
@@ -114,7 +113,7 @@ def generate_mask(raster_path, shape_path, output_path, file_name):
                      out_shape=im_size,
                      all_touched=True)
     
-    #Salve
+    # Salve
     mask = mask.astype("uint8")
     
     bin_mask_meta = src.meta.copy()
